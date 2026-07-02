@@ -2,3 +2,5 @@ console.info("%c Aidan卡 %c 2026.7.1 ", "color: blue; font-weight: bold;", "col
 
 import('./aidan-phone/device-card.js');
 import('./aidan-phone/appliance-card.js');
+import('./aidan-pad/washer-card.js');
+import('./aidan-pad/camera-card.js');
