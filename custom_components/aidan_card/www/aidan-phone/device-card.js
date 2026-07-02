@@ -7,7 +7,7 @@ const css = LitElement.prototype.css;
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: 'aidan-device-card',
-    name: 'Aidan-设备卡片',
+    name: '设备卡片',
     description: '通用设备状态卡片（NAS/路由器）',
     preview: true
 });
@@ -185,8 +185,8 @@ class AidanDeviceCard extends LitElement {
   // ── 判断某区块是否需要显示 ──
   _hasSystem() {
     const c = this.config;
-    return c.cpu || c.cpu_temp || c.mb_temp || c.memory || c.mem_free
-      || c.uptime || c.online_user || c.connect_num || c.lan_ip || c.ap_online;
+    return c.cpu || c.mb_temp || c.memory || c.mem_free
+      || c.online_user || c.connect_num || c.lan_ip;
   }
   _hasStorage() { return !!(this.config.vol1 || this.config.vol2); }
   _hasDisks() {
@@ -205,6 +205,11 @@ class AidanDeviceCard extends LitElement {
     const c = this.config;
     const name = c.name || '设备';
 
+    // 主题 — 与 xiaoshi _evaluateTheme() 完全一致
+    const theme = this._evaluateTheme();
+    const fgColor = theme === 'light' ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)';
+    const bgColor = theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(50, 50, 50)';
+
     // 判断设备类型 → 图标和配色
     const isNas = this._hasStorage() || this._hasDisks() || c.mem_free;
     const deviceIcon = c.icon || (isNas ? '🗄️' : '🌐');
@@ -216,13 +221,11 @@ class AidanDeviceCard extends LitElement {
 
     return html`
       <ha-card style="
-        background: ${this._themeBg()};
+        background: ${bgColor};
         border-radius: 16px;
-        border: 1px solid rgba(128,128,128,0.15);
-        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         overflow: hidden;
         padding: 0;
-        color: ${this._themeText()};
+        color: ${fgColor};
       ">
         <!-- Header -->
         <div style="
@@ -235,8 +238,14 @@ class AidanDeviceCard extends LitElement {
             display:flex;align-items:center;justify-content:center;
             font-size:20px;flex-shrink:0;
           ">${deviceIcon}</div>
-          <div style="flex:1;margin-left:12px">
-            <div style="font-size:17px;font-weight:600">${name}</div>
+          <div style="flex:1;margin-left:12px;min-width:0;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+              <span style="font-size:17px;font-weight:600">${name}</span>
+              ${c.uptime ? html`
+                <span style="font-size:12px;color:#888;white-space:nowrap;flex-shrink:0;margin-left:8px;">
+                  ⏱ ${this._formatUptime(c.uptime)}
+                </span>` : ''}
+            </div>
             ${status ? html`
               <div style="font-size:12px;margin-top:2px;color:${statusOn ? '#4caf50' : '#ff9800'}">
                 ${statusOn ? '●' : '○'} ${status}
@@ -261,12 +270,17 @@ class AidanDeviceCard extends LitElement {
     if (!this._hasSystem()) return '';
     const c = this.config;
 
-    // 统计实际会渲染的单元格数，动态适配列数
+    // 主板温度+内存 合并为一行（如果两者都存在）
+    const hasMbMem = c.mb_temp && c.memory;
+
+    // 统计单元格数（mb+mem合并后算1个）
     const cells = [
-      c.cpu, c.memory, c.cpu_temp, c.mb_temp, c.mem_free,
-      c.uptime, c.online_user, c.connect_num, c.lan_ip, c.ap_online
+      c.cpu,
+      (c.mb_temp || c.memory) ? 1 : 0,
+      c.mem_free,
+      c.online_user, c.connect_num, c.lan_ip
     ].filter(Boolean).length;
-    const cols = cells <= 3 ? cells : 2;  // ≤3格用N列单行，≥4格用2列
+    const cols = cells <= 3 ? cells : 3;
 
     return html`
       <div style="margin-bottom:10px">
@@ -276,15 +290,28 @@ class AidanDeviceCard extends LitElement {
         </div>
         <div style="display:grid;grid-template-columns:repeat(${cols}, 1fr);gap:6px;">
           ${this._sysCell('CPU', c.cpu, '%', 'bar')}
-          ${this._sysCell('内存', c.memory, '%', 'bar')}
-          ${this._sysCellTemp('CPU温度', c.cpu_temp)}
-          ${this._sysCellTemp('主板温度', c.mb_temp)}
-          ${this._sysCell('可用内存', c.mem_free, '', 'text')}
-          ${this._sysCell('运行时间', c.uptime, '', 'uptime')}
+          ${hasMbMem ? this._sysCellDual('主板温度', c.mb_temp, '内存', c.memory) : ''}
+          ${(!hasMbMem && c.memory) ? this._sysCell('内存', c.memory, '%', 'bar') : ''}
+          ${(!hasMbMem && c.mb_temp) ? this._sysCellTemp('主板温度', c.mb_temp) : ''}
+          ${this._sysCell('可用内存', c.mem_free, '', 'mem')}
           ${this._sysCell('在线终端', c.online_user, '', 'text')}
           ${this._sysCell('连接数', c.connect_num, '', 'text')}
           ${this._sysCell('LAN IP', c.lan_ip, '', 'text')}
-          ${this._sysCell('AP在线', c.ap_online, '', 'text')}
+        </div>
+      </div>`;
+  }
+
+  _sysCellDual(label1, eid1, label2, eid2) {
+    const t = this._temp(eid1);
+    const memVal = this._stateVal(eid2, '—');
+    return html`
+      <div style="padding:8px 10px;background:rgba(128,128,128,0.06);border-radius:10px;">
+        <div style="font-size:11px;color:#999;margin-bottom:3px">${label1} / ${label2}</div>
+        <div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span>${t.val}${t.unit}</span>
+          <span style="width:8px;height:8px;border-radius:50%;background:${t.color};flex-shrink:0;"></span>
+          <span style="color:#666;">|</span>
+          <span>${memVal}%</span>
         </div>
       </div>`;
   }
@@ -294,6 +321,8 @@ class AidanDeviceCard extends LitElement {
     let value;
     if (mode === 'uptime') {
       value = this._formatUptime(eid);
+    } else if (mode === 'mem') {
+      value = this._formatSize(this._stateVal(eid, '0'), 'GB');
     } else if (mode === 'bar') {
       const v = parseFloat(this._stateVal(eid, '0'));
       const pct = isNaN(v) ? 0 : Math.min(100, Math.max(0, v));
@@ -337,7 +366,7 @@ class AidanDeviceCard extends LitElement {
           <span style="width:6px;height:6px;background:#4caf50;border-radius:50%;display:inline-block;margin-right:6px;"></span>
           存储空间
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
           ${c.vol1 ? this._storageRow('Vol 1', c.vol1) : ''}
           ${c.vol2 ? this._storageRow('Vol 2', c.vol2) : ''}
         </div>
@@ -345,7 +374,7 @@ class AidanDeviceCard extends LitElement {
   }
 
   _storageRow(label, eid) {
-    const val = this._stateVal(eid, '—');
+    const val = this._formatSize(this._stateVal(eid, '—'), 'TB');
     return html`
       <div style="display:flex;justify-content:space-between;align-items:center;
         padding:10px 12px;background:rgba(128,128,128,0.06);border-radius:10px;">
@@ -355,6 +384,20 @@ class AidanDeviceCard extends LitElement {
         </div>
         <span style="font-size:13px;font-weight:500">${val}</span>
       </div>`;
+  }
+
+  // ── 字节格式化（实体已输出正确单位，仅加后缀）──
+  _formatSize(raw, unit) {
+    if (!raw || raw === '—') return raw;
+    const n = parseFloat(raw);
+    if (isNaN(n)) return raw;
+    return n.toFixed(1).replace(/\.0$/, '') + ' ' + unit;
+  }
+
+  // ── 硬盘名称缩短 ──
+  _shortDisk(name) {
+    if (/ssd/i.test(name)) return 'SSD';
+    return name.replace(/\d{4,}/g, (m) => m[0] + '…');
   }
 
   // ── 硬盘区 ──
@@ -378,23 +421,26 @@ class AidanDeviceCard extends LitElement {
           ${disks.map(d => {
             const t = this._temp(d.temp);
             const s = this._stateVal(d.status, '');
+            const diskOn = s && (s === '正常' || s === 'OK' || s === 'ok' || s === '活动中' || s === 'active' || s === 'running');
             return html`
               <div style="padding:8px 10px;background:rgba(128,128,128,0.06);border-radius:10px;">
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-                  <span>💿</span>
-                  <span style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                    ${d.name}
-                  </span>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px">
-                  ${d.temp ? html`
-                    <span style="font-size:12px;color:${t.color}">${t.val}${t.unit}</span>
-                  ` : ''}
-                  ${s ? html`
-                    <span style="font-size:11px;padding:1px 6px;border-radius:4px;
-                      background:${s === '正常' || s === 'OK' ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)'};
-                      color:${s === '正常' || s === 'OK' ? '#4caf50' : '#f44336'};">${s}</span>
-                  ` : ''}
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                  <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                    <span>💿</span>
+                    <span style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                      ${this._shortDisk(d.name)}
+                    </span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;white-space:nowrap;">
+                    ${d.temp ? html`
+                      <span style="font-size:12px;color:${t.color}">${t.val}${t.unit}</span>
+                    ` : ''}
+                    ${s ? html`
+                      <span style="font-size:11px;padding:1px 8px;border-radius:4px;
+                        background:${diskOn ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.15)'};
+                        color:${diskOn ? '#4caf50' : '#f44336'};">${diskOn ? '运行' : '停止'}</span>
+                    ` : ''}
+                  </div>
                 </div>
               </div>`;
           })}
@@ -441,20 +487,20 @@ class AidanDeviceCard extends LitElement {
           <span style="width:6px;height:6px;background:#34c759;border-radius:50%;display:inline-block;margin-right:6px;"></span>
           WAN 信息
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
           ${c.wan_ip ? html`
             <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(128,128,128,0.06);border-radius:10px;">
-              <span style="font-size:11px;color:#999;min-width:40px">WAN1</span>
+              <span style="font-size:11px;color:#999;min-width:36px">WAN1</span>
               <span style="font-size:13px;font-weight:500;font-family:monospace">${this._stateVal(c.wan_ip, '—')}</span>
             </div>` : ''}
           ${c.wan2_ip ? html`
             <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(128,128,128,0.06);border-radius:10px;">
-              <span style="font-size:11px;color:#999;min-width:40px">WAN2</span>
+              <span style="font-size:11px;color:#999;min-width:36px">WAN2</span>
               <span style="font-size:13px;font-weight:500;font-family:monospace">${this._stateVal(c.wan2_ip, '—')}</span>
             </div>` : ''}
           ${c.wan6_ip ? html`
-            <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(128,128,128,0.06);border-radius:10px;">
-              <span style="font-size:11px;color:#999;min-width:40px">IPv6</span>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(128,128,128,0.06);border-radius:10px;grid-column:1/-1;">
+              <span style="font-size:11px;color:#999;min-width:36px">IPv6</span>
               <span style="font-size:12px;font-weight:500;font-family:monospace;word-break:break-all">${this._stateVal(c.wan6_ip, '—')}</span>
             </div>` : ''}
         </div>
@@ -522,27 +568,28 @@ class AidanDeviceCard extends LitElement {
       </div>`;
   }
 
-  // ── 主题 ──
-  _themeInfo() {
-    if (!this.hass) return { dark: true };
-    const th = this.hass.selectedTheme || this.hass.themes?.default_theme || 'default';
-    return { dark: !th || th === 'default' || (!th.includes('light') && th !== 'Google Light') };
-  }
-
-  _themeBg() {
-    return this._themeInfo().dark ? 'rgb(50,50,50)' : 'rgb(255,255,255)';
-  }
-
-  _themeText() {
-    return this._themeInfo().dark ? 'rgb(255,255,255)' : 'rgb(0,0,0)';
-  }
-
-  _themeSubText() {
-    return this._themeInfo().dark ? 'rgb(200,200,200)' : 'rgb(80,80,80)';
-  }
-
-  _themeCellBg() {
-    return this._themeInfo().dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+  // ── 主题 — 与 xiaoshi 原始卡片 _evaluateTheme() 完全一致 ──
+  _evaluateTheme() {
+    try {
+      const mode = this.config ? this.config.theme : 'system';
+      if (mode === 'light') return 'light';
+      if (mode === 'dark') return 'dark';
+      if (mode === 'system' || !mode) {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+        return 'light';
+      }
+      if (mode === 'sun') {
+        const sunState = this.hass && this.hass.states && this.hass.states['sun.sun'];
+        if (sunState && sunState.state === 'above_horizon') return 'light';
+        if (sunState && sunState.state === 'below_horizon') return 'dark';
+        return 'light';
+      }
+      if (mode === 'function' || (typeof mode === 'string' && mode.includes('theme'))) {
+        if (typeof window.theme === 'function') return window.theme() || 'light';
+        return 'light';
+      }
+      return mode;
+    } catch (e) { return 'light'; }
   }
 
   static get styles() {
