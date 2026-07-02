@@ -2,6 +2,12 @@
     "config": {
         "abort": {
             "single_instance_allowed": "只允许添加一个 Aidan 设备卡片实例"
+        },
+        "step": {
+            "user": {
+                "title": "Aidan 设备卡片",
+                "description": "安装前请确保你已接入以下至少一种设备或集成：\n\n• 飞牛NAS\n• 爱快路由器\n• 小米摄像头\n• 小米米家智能插座 WiFi 版\n\n确认无误后点击提交完成安装。"
+            }
         }
     }
 }

@@ -1,0 +1,13 @@
+{
+    "config": {
+        "abort": {
+            "single_instance_allowed": "Only one instance of Aidan Device Cards is allowed"
+        },
+        "step": {
+            "user": {
+                "title": "Aidan Device Cards",
+                "description": "Before installing, please ensure you have at least one of the following devices or integrations:\n\n• fnNAS\n• iKuai Router\n• Xiaomi Camera\n• Xiaomi Smart Plug (WiFi)\n\nClick Submit to finish installation."
+            }
+        }
+    }
+}
