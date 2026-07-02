@@ -1,0 +1,47 @@
+# 敏感文件
+secrets.yaml
+.HA_TOKEN
+.HA_VERSION
+.storage/
+
+# 数据库
+home-assistant_v2.db
+home-assistant_v2.db-shm
+home-assistant_v2.db-wal
+
+# 日志
+home-assistant.log*
+*.log.fault
+
+# 缓存
+__pycache__/
+*.pyc
+.cache/
+
+# 运行时
+.ha_run.lock
+
+# IDE
+.codebuddy/
+.playwright-cli/
+
+# 个人数据缓存
+*_cache.json
+state_grid_info_*.json
+.shopping_list.json
+tou_price_config.json
+
+# 仪表盘（上游项目）
+仪表盘-平板端/
+仪表盘-手机端/
+
+# 图片资源
+image/
+
+# 蓝图
+blueprints/
+
+# 其他自动生成
+entity_shortcuts.yaml
+device_mapping.yaml
+customize.yaml

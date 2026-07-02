@@ -1,0 +1,7 @@
+{
+    "config": {
+        "abort": {
+            "single_instance_allowed": "只允许添加一个 Aidan 设备卡片实例"
+        }
+    }
+}
