@@ -3,7 +3,7 @@
   "name": "Aidan 设备卡片",
   "codeowners": [],
   "config_flow": true,
-  "documentation": "",
+  "documentation": "https://github.com/Aidan1777/aidan_card",
   "dependencies": [],
   "integration_type": "device",
   "version": "2026.7.2"
